@@ -123,6 +123,57 @@ h1 {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* ホールドパネル内の BlockDisplay ラッパー共通スタイル */
+.hold-panel .block-display-wrapper {
+  display: inline-block;
+  /* 中身のサイズに合わせる */
+  padding: 5px;
+  /* BlockDisplay の padding 相当 */
+  border: 1px solid var(--border-color);
+  background-color: rgba(0, 0, 0, 0.5);
+  /* 通常時の背景色 */
+  border-radius: 3px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  /* 色変化を滑らかに */
+  line-height: 0;
+  /* 隙間防止 */
+  /* サイズは内部の BlockDisplay に合わせるか、必要なら指定 */
+  min-height: calc(var(--small-cell-size) * 4 + 2px);
+  /* border分考慮 */
+  min-width: calc(var(--small-cell-size) * 4 + 2px);
+  /* border分考慮 */
+  box-sizing: border-box;
+  /* padding と border を含める */
+}
+
+/* ★ ホールド不可状態のラッパーのスタイル ★ */
+.hold-panel .block-display-wrapper.hold-unavailable {
+  background-color: rgba(255, 165, 0, 0.2);
+  /* 薄い橙色 (透過度はお好みで調整) */
+  border-color: rgba(255, 165, 0, 0.5);
+  /* 枠線の色も少し橙色に */
+}
+
+/* ホールドパネル内の BlockDisplay 自体のスタイル調整 */
+.hold-panel .block-display {
+  background-color: transparent !important;
+  /* ラッパーの背景を見せるため透明に */
+  border: none !important;
+  /* ラッパーの枠線を使うため削除 */
+  padding: 0 !important;
+  /* ラッパーの padding を使うため削除 */
+  /* サイズに関するスタイルは BlockDisplay 側に任せる */
+  vertical-align: top;
+  /* 念のため */
+}
+
+/* ホールドパネル内の空ブロック表示も同様に調整 */
+.hold-panel .block-display.empty {
+  background-color: transparent !important;
+  border: none !important;
+  /* 空の時の見た目を調整 (ラッパーがあるので不要かも) */
+}
+
 /* Nextキューパネル */
 .next-queue-panel {
   background-color: rgba(0, 0, 0, 0.4);
