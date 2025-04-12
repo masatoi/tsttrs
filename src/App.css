@@ -37,6 +37,8 @@ h1 {
   background-color: rgba(0, 0, 0, 0.8);
   border: 2px solid var(--border-color);
   padding: 2px;
+  height: 508px; /* 20行 × セルの高さ(25px) + パディングとボーダー */
+  overflow: hidden; /* オーバーフローを防止 */
 }
 
 .row {
