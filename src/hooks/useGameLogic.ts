@@ -238,42 +238,63 @@ export const useGameLogic = () => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [dropTime, setDropTime] = useState<number | null>(null);
   
-  // キーボード入力を処理する関数
-  const handleKeyPress = useCallback(
+  // キー入力の状態を追跡
+  const [keyState, setKeyState] = useState<{ [key: string]: boolean }>({});
+  
+  // キーが押された時の処理
+  const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // 既に押されているキーの場合は無視（連続入力防止）
+      if (keyState[event.key]) return;
+      
+      // キーの状態を更新
+      setKeyState(prev => ({ ...prev, [event.key]: true }));
+      
       if (state.isGameOver) return;
       
-      switch (event.key) {
-        case 'ArrowLeft':
-          dispatch({ type: 'MOVE_LEFT' });
-          break;
-        case 'ArrowRight':
-          dispatch({ type: 'MOVE_RIGHT' });
-          break;
-        case 'ArrowDown':
-          dispatch({ type: 'MOVE_DOWN' });
-          break;
-        case 'ArrowUp':
-          dispatch({ type: 'ROTATE' });
-          break;
-        case ' ':
-          dispatch({ type: 'HARD_DROP' });
-          break;
-        case 'p':
-        case 'P':
-          if (state.isPaused) {
-            dispatch({ type: 'RESUME' });
-          } else {
-            dispatch({ type: 'PAUSE' });
-          }
-          break;
-        case 'r':
-        case 'R':
-          dispatch({ type: 'RESTART' });
-          break;
-      }
+      // requestAnimationFrameを使用して描画と同期
+      window.requestAnimationFrame(() => {
+        switch (event.key) {
+          case 'ArrowLeft':
+            dispatch({ type: 'MOVE_LEFT' });
+            break;
+          case 'ArrowRight':
+            dispatch({ type: 'MOVE_RIGHT' });
+            break;
+          case 'ArrowDown':
+            dispatch({ type: 'MOVE_DOWN' });
+            break;
+          case 'ArrowUp':
+            dispatch({ type: 'ROTATE' });
+            break;
+          case ' ':
+            dispatch({ type: 'HARD_DROP' });
+            break;
+          case 'p':
+          case 'P':
+            if (state.isPaused) {
+              dispatch({ type: 'RESUME' });
+            } else {
+              dispatch({ type: 'PAUSE' });
+            }
+            break;
+          case 'r':
+          case 'R':
+            dispatch({ type: 'RESTART' });
+            break;
+        }
+      });
     },
-    [state.isGameOver, state.isPaused]
+    [state.isGameOver, state.isPaused, keyState, dispatch]
+  );
+  
+  // キーが離された時の処理
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      // キーの状態を更新
+      setKeyState(prev => ({ ...prev, [event.key]: false }));
+    },
+    []
   );
   
   // ドロップタイマーを管理する関数
@@ -295,11 +316,13 @@ export const useGameLogic = () => {
   
   // キーボードイベントリスナーを設定
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleKeyPress]);
+  }, [handleKeyDown, handleKeyUp]);
   
   // ドロップタイマーを設定
   useEffect(() => {

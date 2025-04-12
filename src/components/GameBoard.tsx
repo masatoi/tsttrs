@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GameState } from '../types';
 import { TETROMINOS } from '../utils';
 
@@ -9,8 +9,8 @@ interface GameBoardProps {
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
   const { grid, currentBlock } = gameState;
 
-  // 現在のブロックを含むグリッドを作成
-  const renderGrid = () => {
+  // 現在のブロックを含むグリッドを作成（useMemoで最適化）
+  const displayGrid = useMemo(() => {
     // グリッドのコピーを作成
     const displayGrid = grid.map(row => [...row]);
 
@@ -35,9 +35,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
     });
 
     return displayGrid;
-  };
-
-  const displayGrid = renderGrid();
+  }, [grid, currentBlock]); // 依存配列を明示的に指定
 
   return (
     <div className="game-board">
@@ -58,4 +56,5 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
   );
 };
 
-export default GameBoard;
+// React.memoでコンポーネントをメモ化して不要な再レンダリングを防止
+export default React.memo(GameBoard);
