@@ -1,14 +1,18 @@
+// src/utils.ts
+
 import { Block, Position } from './types';
 
 // ゲームボードのサイズ
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 20;
+export const NEXT_QUEUE_SIZE = 5; // Nextキューのサイズ
 
 // テトロミノの形状定義
+// ... (TETROMINOSの定義は変更なし) ...
 export const TETROMINOS: {
   [key: number]: { shape: number[][]; color: string };
 } = {
-  0: { shape: [[0]], color: '0, 0, 0' },
+  0: { shape: [[0]], color: '0, 0, 0' }, // 空白セル
   1: {
     // I型
     shape: [
@@ -22,18 +26,18 @@ export const TETROMINOS: {
   2: {
     // J型
     shape: [
-      [0, 0, 0],
+      [2, 0, 0], // 左上に寄せる
       [2, 2, 2],
-      [0, 0, 2],
+      [0, 0, 0],
     ],
     color: '0, 0, 240', // 青色
   },
   3: {
     // L型
     shape: [
-      [0, 0, 0],
+      [0, 0, 3], // 右上に寄せる
       [3, 3, 3],
-      [3, 0, 0],
+      [0, 0, 0],
     ],
     color: '240, 160, 0', // オレンジ色
   },
@@ -48,54 +52,104 @@ export const TETROMINOS: {
   5: {
     // S型
     shape: [
-      [0, 0, 0],
       [0, 5, 5],
       [5, 5, 0],
+      [0, 0, 0],
     ],
     color: '0, 240, 0', // 緑色
   },
   6: {
     // T型
     shape: [
-      [0, 0, 0],
-      [6, 6, 6],
       [0, 6, 0],
+      [6, 6, 6],
+      [0, 0, 0],
     ],
     color: '160, 0, 240', // 紫色
   },
   7: {
     // Z型
     shape: [
-      [0, 0, 0],
       [7, 7, 0],
       [0, 7, 7],
+      [0, 0, 0],
     ],
     color: '240, 0, 0', // 赤色
   },
+  8: { shape: [[0]], color: 'rgba(255, 255, 255, 0.2)'} // ゴーストブロック用 (色はCSSで指定するが念のため)
 };
 
+
+// ブロックの初期位置を計算する関数
+// ↓↓↓ ここに export を追加 ↓↓↓
+export const getInitialPosition = (type: number): Position => {
+  // O型とI型は中央揃えのため少し調整
+  const shape = TETROMINOS[type].shape;
+
+  // ブロック形状の実際の高さを求める (O型対策)
+  let minY = shape.length;
+  let maxY = -1;
+  shape.forEach((row, y) => {
+    if (row.some(cell => cell !== 0)) {
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  });
+  const blockHeight = maxY - minY + 1;
+
+  // ブロック形状の実際の幅を求める
+  let minX = shape[0].length;
+  let maxX = -1;
+  shape.forEach(row => {
+    row.forEach((cell, x) => {
+      if (cell !== 0) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+      }
+    });
+  });
+  const blockWidth = maxX - minX + 1;
+
+
+  // X座標: ボード中央からブロック幅の半分を引く。minXでオフセット調整。
+  const initialX = Math.floor((BOARD_WIDTH - blockWidth) / 2) - minX;
+  // Y座標: I型など、形状の上部に空白がある場合を考慮 (-minY)
+  const initialY = -minY;
+
+
+  // I型は特別扱いする場合 (形状データが4x4の場合)
+  // if (type === 1) return { x: Math.floor(BOARD_WIDTH / 2) - 2, y: 0 };
+  return { x: initialX, y: initialY };
+
+};
+
+
 // ランダムなテトロミノを生成する関数
+// ... (変更なし) ...
 export const randomTetromino = (): Block => {
   const types = [1, 2, 3, 4, 5, 6, 7];
   const type = types[Math.floor(Math.random() * types.length)];
   return {
     shape: TETROMINOS[type].shape,
-    position: { x: Math.floor(BOARD_WIDTH / 2) - 2, y: 0 },
+    position: getInitialPosition(type), // 初期位置を設定
     type,
   };
 };
+
+// ... (以降の関数 isValidPosition, rotateBlock などは変更なし) ...
 
 // 空のゲームボードを作成する関数
 export const createEmptyBoard = (): number[][] => {
   return Array.from({ length: BOARD_HEIGHT }, () =>
     Array(BOARD_WIDTH).fill(0)
-  );
+                   );
 };
 
 // ブロックが有効な位置にあるかチェックする関数
 export const isValidPosition = (
   block: Block,
-  board: number[][]
+  board: number[][],
+  checkGhost: boolean = false // ゴーストセルの衝突を無視するかどうか
 ): boolean => {
   for (let y = 0; y < block.shape.length; y++) {
     for (let x = 0; x < block.shape[y].length; x++) {
@@ -107,16 +161,19 @@ export const isValidPosition = (
         // ボード外にはみ出していないか
         if (
           boardX < 0 ||
-          boardX >= BOARD_WIDTH ||
-          boardY < 0 ||
-          boardY >= BOARD_HEIGHT
+            boardX >= BOARD_WIDTH ||
+            // boardY < 0 || // 上へのはみ出しチェックは状況による (ここでは判定から外す)
+            boardY >= BOARD_HEIGHT
         ) {
           return false;
         }
 
-        // 他のブロックと重なっていないか
-        if (board[boardY] && board[boardY][boardX] !== 0) {
-          return false;
+        // 他のブロックと重なっていないか (ゴーストセルは無視するオプション)
+        // boardY < 0 のチェックを追加して配列外アクセスを防ぐ
+        if (boardY >= 0 && board[boardY] && board[boardY][boardX] !== 0) {
+          if (!checkGhost || board[boardY][boardX] !== 8) { // 8はゴースト用の仮の値
+            return false;
+          }
         }
       }
     }
@@ -126,11 +183,21 @@ export const isValidPosition = (
 
 // ブロックを回転させる関数
 export const rotateBlock = (block: Block): Block => {
+  // O型は回転しない
+  if (block.type === 4) return block;
+
   // 行列を転置して行を反転することで90度回転
-  const newShape = block.shape[0].map((_, index) =>
-    block.shape.map((row) => row[index]).reverse()
-  );
-  
+  const shape = block.shape;
+  const N = shape.length;
+  const newShape = Array.from({ length: N }, () => Array(N).fill(0));
+
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      // 90度時計回り回転
+      newShape[x][N - 1 - y] = shape[y][x];
+    }
+  }
+
   return {
     ...block,
     shape: newShape,
@@ -143,21 +210,28 @@ export const mergeBlockToBoard = (
   board: number[][]
 ): number[][] => {
   const newBoard = [...board.map((row) => [...row])];
-  
+
   for (let y = 0; y < block.shape.length; y++) {
     for (let x = 0; x < block.shape[y].length; x++) {
       if (block.shape[y][x] !== 0) {
         const boardY = block.position.y + y;
         const boardX = block.position.x + x;
-        if (boardY >= 0 && boardY < BOARD_HEIGHT && boardX >= 0 && boardX < BOARD_WIDTH) {
+        // グリッド範囲内であり、かつゴーストブロックでない場合のみ固定
+        if (
+          boardY >= 0 && boardY < BOARD_HEIGHT &&
+            boardX >= 0 && boardX < BOARD_WIDTH &&
+            newBoard[boardY]?.[boardX] !== 8 // ゴーストセルは上書きしない (オプショナルチェイニングで安全に)
+        ) {
+          // 既存のブロックがある場合も上書き (ブロック固定時)
           newBoard[boardY][boardX] = block.type;
         }
       }
     }
   }
-  
+
   return newBoard;
 };
+
 
 // 完成したラインを消去する関数
 export const clearLines = (
@@ -165,12 +239,13 @@ export const clearLines = (
 ): { newBoard: number[][]; linesCleared: number } => {
   let linesCleared = 0;
   const newBoard = board.filter((row) => {
-    const isLineFull = row.every((cell) => cell !== 0);
+    // ゴーストセル(8)も含めて、0以外のセルで埋まっているかチェック
+    const isLineFull = row.every((cell) => cell !== 0 && cell !== 8);
     if (isLineFull) {
       linesCleared++;
-      return false;
+      return false; // この行を削除
     }
-    return true;
+    return true; // この行を保持
   });
 
   // 消去したライン数分、新しい空の行を上部に追加
@@ -183,16 +258,23 @@ export const clearLines = (
 
 // スコアを計算する関数
 export const calculateScore = (lines: number, level: number): number => {
-  const linePoints = [0, 100, 300, 500, 800];
+  // T-Spinなどの複雑なスコアは未実装
+  const linePoints = [0, 100, 300, 500, 800]; // 1, 2, 3, 4ライン消し
   return linePoints[lines] * level;
 };
 
 // レベルを計算する関数
 export const calculateLevel = (lines: number): number => {
-  return Math.floor(lines / 10) + 1;
+  return Math.floor(lines / 10) + 1; // 10ラインごとにレベルアップ
 };
 
 // 落下速度を計算する関数（ミリ秒）
 export const calculateDropTime = (level: number): number => {
-  return Math.max(1000 - (level - 1) * 100, 100);
+  // レベルに応じて指数関数的に速くする例 (上限・下限設定)
+  const baseSpeed = 1000;
+  const speedMultiplier = 0.85; // レベルごとの速度係数
+  const minSpeed = 100; // 最速値
+
+  let dropTime = baseSpeed * Math.pow(speedMultiplier, level - 1);
+  return Math.max(dropTime, minSpeed);
 };

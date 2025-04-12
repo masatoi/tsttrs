@@ -10,7 +10,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>テトリスゲーム</h1>
+      <h1>TSTtrs</h1>
       
       <div className="game-container">
         <GameBoard gameState={state} />
