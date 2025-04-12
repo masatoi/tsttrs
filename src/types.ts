@@ -24,6 +24,10 @@ export interface GameState {
   lines: number;          // 消去したライン数
   isGameOver: boolean;    // ゲームオーバー状態
   isPaused: boolean;      // 一時停止状態
+  // --- 7-bag randomizer 用の状態 ---
+  currentBag: number[];   // 現在使用中のブロック種類IDの袋
+  nextBag: number[];      // 次に使用するブロック種類IDの袋
+  // ---------------------------------
 }
 
 // ゲームアクションの型

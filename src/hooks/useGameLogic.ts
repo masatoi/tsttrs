@@ -1,11 +1,9 @@
 // src/hooks/useGameLogic.ts
+
 import { useReducer, useEffect, useCallback, useState } from 'react';
 import { GameState, GameAction, Block } from '../types';
 import {
-  BOARD_WIDTH,
-  BOARD_HEIGHT,
   createEmptyBoard,
-  randomTetromino,
   isValidPosition,
   rotateBlock,
   mergeBlockToBoard,
@@ -14,41 +12,146 @@ import {
   calculateLevel,
   calculateDropTime,
   NEXT_QUEUE_SIZE,
-  getInitialPosition, // 初期位置計算関数をインポート
+  getInitialPosition,
+  generateShuffledBag,
+  createBlockByType,
 } from '../utils';
 
-// Nextキューを初期化する関数
-const initializeNextBlocks = (): Block[] => {
-    return Array.from({ length: NEXT_QUEUE_SIZE }, () => randomTetromino());
+// --- 初期状態生成ヘルパー ---
+const generateInitialGameState = (): GameState => {
+  let currentBag = generateShuffledBag();
+  let nextBag = generateShuffledBag();
+
+  const getNextTypeIdAndUpdateBags = (): number => {
+    if (currentBag.length === 0) {
+      currentBag = nextBag;
+      nextBag = generateShuffledBag();
+    }
+    return currentBag.shift()!;
+  };
+
+  const initialCurrentBlockType = getNextTypeIdAndUpdateBags();
+  const initialCurrentBlock = createBlockByType(initialCurrentBlockType);
+
+  const initialNextBlocks: Block[] = [];
+  for (let i = 0; i < NEXT_QUEUE_SIZE; i++) {
+    const nextType = getNextTypeIdAndUpdateBags();
+    initialNextBlocks.push(createBlockByType(nextType));
+  }
+
+  return {
+    grid: createEmptyBoard(),
+    currentBlock: initialCurrentBlock,
+    nextBlocks: initialNextBlocks, // <- Typo修正: nextBlocks
+    heldBlock: null,
+    canHold: true,
+    score: 0,
+    level: 1,
+    lines: 0,
+    isGameOver: false,
+    isPaused: true,
+    currentBag: currentBag,
+    nextBag: nextBag,
+  };
 };
 
 // ゲーム状態の初期値
-const initialBlocks = initializeNextBlocks();
-const initialState: GameState = {
-  grid: createEmptyBoard(),
-  currentBlock: initialBlocks[0], // 最初のブロック
-  nextBlocks: initialBlocks.slice(1), // 残りのブロックをキューに
-  heldBlock: null,
-  canHold: true,
-  score: 0,
-  level: 1,
-  lines: 0,
-  isGameOver: false,
-  isPaused: true, // 初期状態は一時停止
+const initialState: GameState = generateInitialGameState();
+
+// --- 袋から次のブロックを取得し、状態を更新するヘルパー関数 ---
+const getNextBlockAndUpdateState = (currentState: GameState): { nextBlock: Block; updatedState: GameState } => {
+  let updatedCurrentBag = [...currentState.currentBag];
+  let updatedNextBag = [...currentState.nextBag];
+
+  if (updatedCurrentBag.length === 0) {
+    updatedCurrentBag = updatedNextBag;
+    updatedNextBag = generateShuffledBag();
+  }
+  const nextTypeId = updatedCurrentBag.shift()!;
+  const nextBlock = createBlockByType(nextTypeId);
+
+  const updatedState = {
+    ...currentState,
+    currentBag: updatedCurrentBag,
+    nextBag: updatedNextBag,
+  };
+
+  return { nextBlock, updatedState };
 };
 
+const processBlockLocking = (
+  state: GameState,
+  lockedBlock: Block, // 固定されるブロックの情報
+  hardDropDistance: number = 0 // ハードドロップで落下した距離 (0なら通常落下/ソフトドロップ)
+): GameState => {
+  // 1. グリッドにブロックをマージ
+  let fixedGrid = mergeBlockToBoard(lockedBlock, state.grid);
+  // 2. ライン消去処理
+  const { newBoard, linesCleared } = clearLines(fixedGrid);
+
+  // 3. スコア・レベル・ライン数計算
+  let newScore = state.score;
+  let newLines = state.lines;
+  let newLevel = state.level;
+
+  // ハードドロップボーナスを加算 (落下距離に基づいて)
+  if (hardDropDistance > 0) {
+    // 例: 落下したマス数 * 2点
+    newScore += hardDropDistance * 2;
+  }
+
+  if (linesCleared > 0) {
+    newLines = state.lines + linesCleared;
+    newLevel = calculateLevel(newLines);
+    // ライン消去スコアを加算 (新しいレベルで計算)
+    newScore += calculateScore(linesCleared, newLevel);
+    console.log(`Lines Cleared: ${linesCleared}, Total Lines: ${newLines}, New Level: ${newLevel}`);
+  } else {
+    // console.log("No lines cleared."); // 必要ならログ表示
+  }
+
+  // 4. 次のブロック準備 (袋からの取得 & キュー更新)
+  const nextCurrentBlockFromQueue = state.nextBlocks[0]; // キューの先頭を取得
+  // 袋から新しいブロックIDを取得し、袋の状態も更新
+  const { nextBlock: newBlockForQueue, updatedState: stateAfterBagUpdate } = getNextBlockAndUpdateState(state);
+  // 新しいNextキューを作成
+  const newNextBlocksQueue = [...state.nextBlocks.slice(1), newBlockForQueue];
+
+  // 5. 次のカレントブロック生成 (初期位置にリセット)
+  const nextCurrentBlock = {
+    ...nextCurrentBlockFromQueue,
+    position: getInitialPosition(nextCurrentBlockFromQueue.type)
+  };
+
+  // 6. ゲームオーバー判定 (新しいボードと次のブロックで判定)
+  const isGameOver = !isValidPosition(nextCurrentBlock, newBoard);
+
+  // 7. 新しい状態オブジェクトを構築して返す
+  return {
+    ...stateAfterBagUpdate, // 袋の状態が更新された state をベースに
+    grid: newBoard,
+    currentBlock: nextCurrentBlock,
+    nextBlocks: newNextBlocksQueue,
+    score: newScore,
+    level: newLevel,
+    lines: newLines,
+    isGameOver: isGameOver,
+    isPaused: isGameOver ? true : state.isPaused, // ゲームオーバーなら一時停止
+    canHold: true, // 固定後はホールド可能にリセット
+    // heldBlock はこの関数では変更しない
+  };
+};
 
 // ゲーム状態を更新するリデューサー
 const gameReducer = (state: GameState, action: GameAction): GameState => {
-  // ゲームオーバーまたは一時停止中は特定の操作のみ許可
-  if (state.isGameOver && action.type !== 'RESTART') {
-    return state;
-  }
-   if (state.isPaused && !['RESUME', 'RESTART', 'PAUSE'].includes(action.type) && !(action.type === 'TICK' && !state.isGameOver)) {
-       return state;
-   }
+  // --- ガード節 ---
+  if (state.isGameOver && action.type !== 'RESTART') { return state; }
+  // PAUSEアクション自体は許可する。TICKは別途isPausedを見る。
+  if (state.isPaused && !['RESUME', 'RESTART', 'PAUSE'].includes(action.type)) { return state; }
+  // ---------------
 
   switch (action.type) {
+    // --- 移動 ---
     case 'MOVE_LEFT': {
       const newBlock = {
         ...state.currentBlock,
@@ -59,7 +162,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       }
       return state;
     }
-
     case 'MOVE_RIGHT': {
       const newBlock = {
         ...state.currentBlock,
@@ -70,65 +172,15 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       }
       return state;
     }
-
-    case 'MOVE_DOWN': {
-        const newBlock = {
-            ...state.currentBlock,
-            position: { ...state.currentBlock.position, y: state.currentBlock.position.y + 1 },
-        };
-
-        if (isValidPosition(newBlock, state.grid)) {
-            // 下に移動できる場合
-            return { ...state, currentBlock: newBlock };
-        } else {
-            // 下に移動できない場合 (ブロック固定処理)
-            let fixedGrid = mergeBlockToBoard(state.currentBlock, state.grid);
-            const { newBoard, linesCleared } = clearLines(fixedGrid);
-
-            let newScore = state.score;
-            let newLines = state.lines;
-            let newLevel = state.level;
-
-            if (linesCleared > 0) {
-                newLines = state.lines + linesCleared;
-                newLevel = calculateLevel(newLines);
-                newScore = state.score + calculateScore(linesCleared, newLevel); // レベルは新しいレベルで計算
-            }
-
-            // 次のブロックを準備
-            const nextCurrentBlock = state.nextBlocks[0];
-            const remainingNextBlocks = state.nextBlocks.slice(1);
-            const newNextBlocks = [...remainingNextBlocks, randomTetromino()]; // 新しいブロックをキューに追加
-
-             // 新しいブロックが配置可能かチェック (ゲームオーバー判定)
-             const isGameOver = !isValidPosition(nextCurrentBlock, newBoard);
-
-            return {
-                ...state,
-                grid: newBoard,
-                currentBlock: { // 新しいブロックの位置をリセット
-                    ...nextCurrentBlock,
-                    position: getInitialPosition(nextCurrentBlock.type)
-                },
-                nextBlocks: newNextBlocks,
-                score: newScore,
-                level: newLevel,
-                lines: newLines,
-                isGameOver: isGameOver,
-                isPaused: isGameOver ? true : state.isPaused, // ゲームオーバーなら一時停止
-                canHold: true, // ブロック固定時にホールド可能にする
-            };
-        }
-    }
-
-
+    // --- 回転 ---
     case 'ROTATE': {
       const rotatedBlock = rotateBlock(state.currentBlock);
       let newBlock = rotatedBlock;
+      let foundValidPosition = false;
 
-      // 回転後の位置をチェックし、必要ならずらす (Wall Kick)
-      if (!isValidPosition(rotatedBlock, state.grid)) {
-        // 左右に1マス、2マスずらして試す (基本的なWall Kick)
+      if (isValidPosition(rotatedBlock, state.grid)) {
+        foundValidPosition = true;
+      } else {
         const adjustments = [1, -1, 2, -2];
         for (const dx of adjustments) {
           const adjustedBlock = {
@@ -137,162 +189,85 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           };
           if (isValidPosition(adjustedBlock, state.grid)) {
             newBlock = adjustedBlock;
-            break; // 有効な位置が見つかったらループを抜ける
+            foundValidPosition = true;
+            break;
           }
-           // 上下にずらす試行も追加可能 (より高度なWall Kick)
-            // const dy = 1; // 例えば下に1マス
-            // const adjustedBlockY = {
-            //   ...rotatedBlock,
-            //   position: { ...rotatedBlock.position, y: rotatedBlock.position.y + dy },
-            // };
-            // if (isValidPosition(adjustedBlockY, state.grid)) {
-            //      newBlock = adjustedBlockY;
-            //      break;
-            // }
         }
       }
 
-       // 最終的に有効な位置が見つかれば更新
-        if (isValidPosition(newBlock, state.grid)) {
-            return { ...state, currentBlock: newBlock };
-        }
-
-      return state; // 回転も移動もできなければ状態はそのまま
+      if (foundValidPosition) {
+        return { ...state, currentBlock: newBlock };
+      }
+      return state;
     }
+    // --- 落下 & 固定 ---
+    case 'MOVE_DOWN': {
+      const newBlockPos = {
+        ...state.currentBlock,
+        position: { ...state.currentBlock.position, y: state.currentBlock.position.y + 1 },
+      };
 
+      if (isValidPosition(newBlockPos, state.grid)) {
+        // 下に移動できる場合
+        return { ...state, currentBlock: newBlockPos };
+      } else {
+        // --- ブロック固定処理を呼び出す ---
+        // 通常落下なので hardDropDistance は 0 (または省略)
+        return processBlockLocking(state, state.currentBlock);
+      }
+    }
     case 'HARD_DROP': {
+      // 着地位置を計算
       let newY = state.currentBlock.position.y;
       let testBlock = { ...state.currentBlock };
-
-      // ブロックが着地するまで下に移動できるかチェック
-      while (
-        isValidPosition(
-          { ...testBlock, position: { ...testBlock.position, y: newY + 1 } },
-          state.grid
-        )
-      ) {
+      while (isValidPosition({ ...testBlock, position: { ...testBlock.position, y: newY + 1 } }, state.grid)) {
         newY++;
       }
+      const landedBlock = { ...state.currentBlock, position: { ...state.currentBlock.position, y: newY } };
+      const dropDistance = newY - state.currentBlock.position.y; // 落下距離を計算
 
-      const landedBlock = {
-        ...state.currentBlock,
-        position: { ...state.currentBlock.position, y: newY },
-      };
-
-      // ブロックを固定して次のブロックを生成 (MOVE_DOWNの固定処理と類似)
-       let fixedGrid = mergeBlockToBoard(landedBlock, state.grid);
-       const { newBoard, linesCleared } = clearLines(fixedGrid);
-
-       let newScore = state.score;
-       let newLines = state.lines;
-       let newLevel = state.level;
-
-       // ハードドロップによるスコア加算 (例: 落下マス数 * 2)
-       const hardDropBonus = (newY - state.currentBlock.position.y) * 2;
-       newScore += hardDropBonus;
-
-       if (linesCleared > 0) {
-           newLines = state.lines + linesCleared;
-           newLevel = calculateLevel(newLines);
-           newScore += calculateScore(linesCleared, newLevel); // ライン消去スコアも加算
-       }
-
-       const nextCurrentBlock = state.nextBlocks[0];
-       const remainingNextBlocks = state.nextBlocks.slice(1);
-       const newNextBlocks = [...remainingNextBlocks, randomTetromino()];
-
-       const isGameOver = !isValidPosition(nextCurrentBlock, newBoard);
-
-       return {
-           ...state,
-           grid: newBoard,
-           currentBlock: { // 新しいブロックの位置をリセット
-                ...nextCurrentBlock,
-                position: getInitialPosition(nextCurrentBlock.type)
-            },
-           nextBlocks: newNextBlocks,
-           score: newScore,
-           level: newLevel,
-           lines: newLines,
-           isGameOver: isGameOver,
-           isPaused: isGameOver ? true : state.isPaused,
-           canHold: true, // ハードドロップ後もホールド可能
-       };
+      // --- ブロック固定処理を呼び出す (落下距離を渡す) ---
+      return processBlockLocking(state, landedBlock, dropDistance);
     }
-
     case 'HOLD': {
-      if (!state.canHold) {
-        return state; // 既にホールド済みなら何もしない
-      }
-
+      // (変更なし)
+      if (!state.canHold) return state;
       let newCurrentBlock: Block;
-      let newHeldBlock = state.currentBlock; // 現在のブロックをホールドへ
-
-      if (state.heldBlock) {
-        // ホールド中のブロックがあればそれを現在のブロックにする
-        newCurrentBlock = state.heldBlock;
-      } else {
-        // ホールドが空なら、Nextから新しいブロックを取得
+      const newHeldBlock = state.currentBlock;
+      let stateAfterBagUpdate = state;
+      let newNextBlocksQueue = [...state.nextBlocks];
+      if (state.heldBlock) { newCurrentBlock = state.heldBlock; }
+      else {
         newCurrentBlock = state.nextBlocks[0];
-        const remainingNextBlocks = state.nextBlocks.slice(1);
-        state.nextBlocks = [...remainingNextBlocks, randomTetromino()]; // nextキューも更新
+        const { nextBlock: newBlockForQueue, updatedState } = getNextBlockAndUpdateState(state);
+        stateAfterBagUpdate = updatedState;
+        newNextBlocksQueue = [...state.nextBlocks.slice(1), newBlockForQueue];
       }
-
-      // 新しいカレントブロックの初期位置を設定
-      newCurrentBlock.position = getInitialPosition(newCurrentBlock.type);
-
-       // 新しいブロックが配置可能かチェック (ホールド直後にゲームオーバーになるケース)
-       const isImmediatelyGameOver = !isValidPosition(newCurrentBlock, state.grid);
-       if (isImmediatelyGameOver) {
-            return {
-                ...state,
-                isGameOver: true,
-                isPaused: true,
-                heldBlock: newHeldBlock, // ホールドは実行する
-                canHold: false,
-            };
-       }
-
-      return {
-        ...state,
-        currentBlock: newCurrentBlock,
-        heldBlock: newHeldBlock,
-        canHold: false, // ホールド後は次のブロック固定までホールド不可
-      };
+      const currentBlockAtInitialPos = { ...newCurrentBlock, position: getInitialPosition(newCurrentBlock.type) };
+      const isImmediatelyGameOver = !isValidPosition(currentBlockAtInitialPos, stateAfterBagUpdate.grid);
+      if (isImmediatelyGameOver) { /* ...ゲームオーバー処理... */
+        return { ...stateAfterBagUpdate, nextBlocks: newNextBlocksQueue, isGameOver: true, isPaused: true, heldBlock: newHeldBlock, canHold: false };
+      }
+      return { ...stateAfterBagUpdate, currentBlock: currentBlockAtInitialPos, nextBlocks: newNextBlocksQueue, heldBlock: newHeldBlock, canHold: false };
     }
-
-
+    // --- 追加: 一時停止/再開 ---
     case 'PAUSE':
+      // ガード節で isPaused=true の場合は弾かれているはず
       return { ...state, isPaused: true };
-
     case 'RESUME':
-      // ゲームオーバー時は再開できない
-      if (state.isGameOver) return state;
+      // ガード節で isPaused=false または isGameOver=true の場合は弾かれているはず
       return { ...state, isPaused: false };
-
+    // --- 修正済み: リスタート ---
     case 'RESTART':
-      const newInitialBlocks = initializeNextBlocks();
-      return {
-          ...initialState,
-          grid: createEmptyBoard(),
-          currentBlock: newInitialBlocks[0],
-          nextBlocks: newInitialBlocks.slice(1),
-          isPaused: false, // リスタート時はゲーム開始
-      };
-
-
+      return generateInitialGameState();
+    // --- 修正済み: Tick ---
     case 'TICK':
-      // ゲームが一時停止中またはゲームオーバーの場合は何もしない
-      if (state.isPaused || state.isGameOver) {
-        return state;
-      }
-      // 下に移動（MOVE_DOWNと同じロジックを再利用）
+      // isPaused/isGameOver チェックは不要 (ガード節で処理されるため)
+      // if (state.isPaused || state.isGameOver) return state;
       return gameReducer(state, { type: 'MOVE_DOWN' });
-
-
     default:
-      // 未知のアクションタイプの場合は状態を変更しない
-       // console.warn('Unknown action type:', (action as any).type);
+      // 型チェックのために網羅性を確認 (never 型を使うなど)
+      // const _: never = action;
       return state;
   }
 };
@@ -307,13 +282,13 @@ export const useGameLogic = () => {
   // キーが押された時の処理
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-       // メタキーや修飾キーが押されている場合は無視 (例: Cmd+Rによるリロード防止)
-       if (event.metaKey || event.ctrlKey) return;
+      // メタキーや修飾キーが押されている場合は無視 (例: Cmd+Rによるリロード防止)
+      if (event.metaKey || event.ctrlKey) return;
 
-       // テキスト入力中などはゲーム操作を無効化 (オプション)
-       // if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-       //     return;
-       // }
+      // テキスト入力中などはゲーム操作を無効化 (オプション)
+      // if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      //     return;
+      // }
 
       // キーリピートによる連続ディスパッチを防ぐ (キーが既に押されているかどうかのチェックは不要)
       // if (keyState[event.key]) return; // この行を削除
@@ -336,7 +311,7 @@ export const useGameLogic = () => {
           // resetDropTimer();
           break;
         case 'ArrowUp':
-           if (!state.isPaused) dispatch({ type: 'ROTATE' });
+          if (!state.isPaused) dispatch({ type: 'ROTATE' });
           break;
         case ' ': // Space
           if (!state.isPaused) dispatch({ type: 'HARD_DROP' });
@@ -344,7 +319,7 @@ export const useGameLogic = () => {
         case 'Shift':
         case 'c': // Shift または C キーでホールド
         case 'C':
-           if (!state.isPaused) dispatch({ type: 'HOLD' });
+          if (!state.isPaused) dispatch({ type: 'HOLD' });
           break;
         case 'p':
         case 'P':
@@ -359,23 +334,23 @@ export const useGameLogic = () => {
           dispatch({ type: 'RESTART' });
           break;
         default:
-            actionDispatched = false; // 対応するキーでなければフラグを下げる
-            break;
+          actionDispatched = false; // 対応するキーでなければフラグを下げる
+          break;
       }
 
       // ゲーム操作に関連するキーが押された場合、デフォルトのブラウザ動作（スクロールなど）を抑制
       if (actionDispatched && ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' '].includes(event.key)) {
-          event.preventDefault();
+        event.preventDefault();
       }
     },
     [state.isPaused, state.isGameOver, dispatch] // keyStateを依存配列から削除
   );
 
-   // キーが離された時の処理 (キーリピート制御が不要になったため、handleKeyUp自体不要になる場合がある)
-   // 必要であれば残す (例: 特定キーを押しっぱなしにする操作)
-   // const handleKeyUp = useCallback((event: KeyboardEvent) => {
-   //     // 必要ならキー状態を管理
-   // }, []);
+  // キーが離された時の処理 (キーリピート制御が不要になったため、handleKeyUp自体不要になる場合がある)
+  // 必要であれば残す (例: 特定キーを押しっぱなしにする操作)
+  // const handleKeyUp = useCallback((event: KeyboardEvent) => {
+  //     // 必要ならキー状態を管理
+  // }, []);
 
   // ドロップタイマーを管理する関数
   const updateDropTime = useCallback(() => {
@@ -404,7 +379,7 @@ export const useGameLogic = () => {
   // 一定間隔でブロックを落下させる (TICKアクション)
   useEffect(() => {
     if (!dropTime || state.isPaused || state.isGameOver) {
-       return; // タイマーがnull、一時停止中、ゲームオーバーなら何もしない
+      return; // タイマーがnull、一時停止中、ゲームオーバーなら何もしない
     }
 
     const intervalId = setInterval(() => {

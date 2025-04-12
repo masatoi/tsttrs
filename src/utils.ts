@@ -76,7 +76,7 @@ export const TETROMINOS: {
     ],
     color: '240, 0, 0', // 赤色
   },
-  8: { shape: [[0]], color: 'rgba(255, 255, 255, 0.2)'} // ゴーストブロック用 (色はCSSで指定するが念のため)
+  8: { shape: [[0]], color: 'rgba(255, 255, 255, 0.2)' } // ゴーストブロック用 (色はCSSで指定するが念のため)
 };
 
 
@@ -95,7 +95,6 @@ export const getInitialPosition = (type: number): Position => {
       maxY = Math.max(maxY, y);
     }
   });
-  const blockHeight = maxY - minY + 1;
 
   // ブロック形状の実際の幅を求める
   let minX = shape[0].length;
@@ -110,39 +109,63 @@ export const getInitialPosition = (type: number): Position => {
   });
   const blockWidth = maxX - minX + 1;
 
-
   // X座標: ボード中央からブロック幅の半分を引く。minXでオフセット調整。
   const initialX = Math.floor((BOARD_WIDTH - blockWidth) / 2) - minX;
   // Y座標: I型など、形状の上部に空白がある場合を考慮 (-minY)
   const initialY = -minY;
 
-
-  // I型は特別扱いする場合 (形状データが4x4の場合)
-  // if (type === 1) return { x: Math.floor(BOARD_WIDTH / 2) - 2, y: 0 };
   return { x: initialX, y: initialY };
-
 };
 
+// --- 7-bag randomizer 用ヘルパー ---
+// Fisher-Yates (Knuth) Shuffle アルゴリズム
+const shuffleArray = (array: number[]): number[] => {
+  let currentIndex = array.length;
+  let randomIndex: number;
+  // 元の配列を変更しないようにコピーを作成
+  const shuffledArray = [...array];
 
-// ランダムなテトロミノを生成する関数
-// ... (変更なし) ...
-export const randomTetromino = (): Block => {
+  // While there remain elements to shuffle.
+  while (currentIndex !== 0) {
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [shuffledArray[currentIndex], shuffledArray[randomIndex]] = [
+      shuffledArray[randomIndex], shuffledArray[currentIndex]];
+  }
+
+  return shuffledArray;
+};
+
+// 7種類のブロックID (1-7) を含むシャッフルされた配列（袋）を生成する関数
+export const generateShuffledBag = (): number[] => {
   const types = [1, 2, 3, 4, 5, 6, 7];
-  const type = types[Math.floor(Math.random() * types.length)];
+  return shuffleArray(types);
+};
+
+// 指定されたタイプのブロックオブジェクトを生成する関数
+export const createBlockByType = (type: number): Block => {
+  // 不正なタイプが渡された場合のフォールバック (例: T型)
+  const validTypes = [1, 2, 3, 4, 5, 6, 7];
+  const blockType = validTypes.includes(type) ? type : 6; // T型をデフォルトに
+
+  if (!validTypes.includes(type)) {
+    console.warn(`Invalid block type requested: ${type}. Falling back to type 6.`);
+  }
+
   return {
-    shape: TETROMINOS[type].shape,
-    position: getInitialPosition(type), // 初期位置を設定
-    type,
+    shape: TETROMINOS[blockType].shape,
+    position: getInitialPosition(blockType),
+    type: blockType,
   };
 };
-
-// ... (以降の関数 isValidPosition, rotateBlock などは変更なし) ...
+// ---------------------------------
 
 // 空のゲームボードを作成する関数
 export const createEmptyBoard = (): number[][] => {
-  return Array.from({ length: BOARD_HEIGHT }, () =>
-    Array(BOARD_WIDTH).fill(0)
-                   );
+  return Array.from({ length: BOARD_HEIGHT }, () => Array(BOARD_WIDTH).fill(0));
 };
 
 // ブロックが有効な位置にあるかチェックする関数
@@ -161,9 +184,9 @@ export const isValidPosition = (
         // ボード外にはみ出していないか
         if (
           boardX < 0 ||
-            boardX >= BOARD_WIDTH ||
-            // boardY < 0 || // 上へのはみ出しチェックは状況による (ここでは判定から外す)
-            boardY >= BOARD_HEIGHT
+          boardX >= BOARD_WIDTH ||
+          // boardY < 0 || // 上へのはみ出しチェックは状況による (ここでは判定から外す)
+          boardY >= BOARD_HEIGHT
         ) {
           return false;
         }
@@ -219,8 +242,8 @@ export const mergeBlockToBoard = (
         // グリッド範囲内であり、かつゴーストブロックでない場合のみ固定
         if (
           boardY >= 0 && boardY < BOARD_HEIGHT &&
-            boardX >= 0 && boardX < BOARD_WIDTH &&
-            newBoard[boardY]?.[boardX] !== 8 // ゴーストセルは上書きしない (オプショナルチェイニングで安全に)
+          boardX >= 0 && boardX < BOARD_WIDTH &&
+          newBoard[boardY]?.[boardX] !== 8 // ゴーストセルは上書きしない (オプショナルチェイニングで安全に)
         ) {
           // 既存のブロックがある場合も上書き (ブロック固定時)
           newBoard[boardY][boardX] = block.type;
