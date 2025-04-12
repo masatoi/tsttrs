@@ -142,6 +142,50 @@ const processBlockLocking = (
   };
 };
 
+// --- Wall Kick ヘルパー関数 ---
+/**
+ * 回転後のブロックに対して Wall Kick (左右の基本的なもの) を試行し、
+ * 有効な配置位置を見つけます。
+ * @param rotatedBlock 回転直後のブロックオブジェクト
+ * @param grid 現在のゲーム盤面の状態 (number[][])
+ * @returns 有効な位置が見つかった場合はその Block オブジェクト、見つからなければ null
+ */
+const tryWallKick = (rotatedBlock: Block, grid: number[][]): Block | null => {
+  // 1. まず、回転直後の元の位置が有効かチェック
+  if (isValidPosition(rotatedBlock, grid)) {
+    return rotatedBlock; // 有効なら、キック不要でそのまま返す
+  }
+
+  // 2. 左右にずらして試す (基本的な Wall Kick の試行順序例)
+  const adjustments = [
+    1,  // 右に1マス
+    -1, // 左に1マス
+    2,  // 右に2マス
+    -2, // 左に2マス
+    // 必要に応じて、上下の調整や、Iミノ用の特殊な調整を追加
+    // 例: { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 2, y: 0 }, { x: -2, y: 0 }, { x: 0, y: -1 } ...
+  ];
+
+  for (const dx of adjustments) {
+    const adjustedPosition = {
+      ...rotatedBlock.position,
+      x: rotatedBlock.position.x + dx
+    };
+    const adjustedBlock = {
+      ...rotatedBlock,
+      position: adjustedPosition,
+    };
+
+    if (isValidPosition(adjustedBlock, grid)) {
+      // 有効な位置が見つかったら、そのブロックを返す
+      return adjustedBlock;
+    }
+  }
+
+  // 3. すべての調整を試しても有効な位置が見つからなかった場合
+  return null;
+};
+
 // ゲーム状態を更新するリデューサー
 const gameReducer = (state: GameState, action: GameAction): GameState => {
   // --- ガード節 ---
@@ -172,33 +216,26 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       }
       return state;
     }
-    // --- 回転 ---
+
+    // 時計回りの回転
     case 'ROTATE': {
-      const rotatedBlock = rotateBlock(state.currentBlock);
-      let newBlock = rotatedBlock;
-      let foundValidPosition = false;
+      // 1. まず回転させる
+      const rotatedBlock = rotateBlock(state.currentBlock, 1);
+      // 2. Wall Kick を試行する
+      const finalBlock = tryWallKick(rotatedBlock, state.grid);
+      // 3. 結果に応じて状態を更新
+      // finalBlock が null でなければ (有効な位置が見つかれば) 更新、null なら元の state
+      return finalBlock ? { ...state, currentBlock: finalBlock } : state;
+    }
 
-      if (isValidPosition(rotatedBlock, state.grid)) {
-        foundValidPosition = true;
-      } else {
-        const adjustments = [1, -1, 2, -2];
-        for (const dx of adjustments) {
-          const adjustedBlock = {
-            ...rotatedBlock,
-            position: { ...rotatedBlock.position, x: rotatedBlock.position.x + dx },
-          };
-          if (isValidPosition(adjustedBlock, state.grid)) {
-            newBlock = adjustedBlock;
-            foundValidPosition = true;
-            break;
-          }
-        }
-      }
-
-      if (foundValidPosition) {
-        return { ...state, currentBlock: newBlock };
-      }
-      return state;
+    // 反時計回りの回転
+    case 'ROTATE_COUNTER_CLOCKWISE': {
+      // 1. まず回転させる
+      const rotatedBlock = rotateBlock(state.currentBlock, -1);
+      // 2. Wall Kick を試行する
+      const finalBlock = tryWallKick(rotatedBlock, state.grid);
+      // 3. 結果に応じて状態を更新
+      return finalBlock ? { ...state, currentBlock: finalBlock } : state;
     }
     // --- 落下 & 固定 ---
     case 'MOVE_DOWN': {
@@ -297,53 +334,36 @@ export const useGameLogic = () => {
       // if (state.isPaused && event.key !== 'p' && event.key !== 'P' && event.key !== 'r' && event.key !== 'R') return; // Pause中はPとRのみ許可
 
       let actionDispatched = true; // アクションがディスパッチされたか
+      let actionType: GameAction['type'] | null = null;
 
       switch (event.key) {
-        case 'ArrowLeft':
-          if (!state.isPaused) dispatch({ type: 'MOVE_LEFT' });
-          break;
-        case 'ArrowRight':
-          if (!state.isPaused) dispatch({ type: 'MOVE_RIGHT' });
-          break;
-        case 'ArrowDown':
-          if (!state.isPaused) dispatch({ type: 'MOVE_DOWN' });
-          // 下キーを押したらドロップタイマーをリセットして即時反応させる（オプション）
-          // resetDropTimer();
-          break;
-        case 'ArrowUp':
-          if (!state.isPaused) dispatch({ type: 'ROTATE' });
-          break;
-        case ' ': // Space
-          if (!state.isPaused) dispatch({ type: 'HARD_DROP' });
-          break;
-        case 'Shift':
-        case 'c': // Shift または C キーでホールド
-        case 'C':
-          if (!state.isPaused) dispatch({ type: 'HOLD' });
-          break;
-        case 'p':
-        case 'P':
-          if (state.isPaused && !state.isGameOver) {
-            dispatch({ type: 'RESUME' });
-          } else if (!state.isPaused) {
-            dispatch({ type: 'PAUSE' });
-          }
-          break;
-        case 'r':
-        case 'R':
-          dispatch({ type: 'RESTART' });
-          break;
-        default:
-          actionDispatched = false; // 対応するキーでなければフラグを下げる
-          break;
+        case 's': case 'S': case 'h': case 'H': case 'ArrowLeft': if (!state.isPaused) actionType = 'MOVE_LEFT'; break;
+        case 'g': case 'G': case 'l': case 'L': case 'ArrowRight': if (!state.isPaused) actionType = 'MOVE_RIGHT'; break;
+        case 'v': case 'V': case 'n': case 'N': case 'ArrowDown': if (!state.isPaused) actionType = 'MOVE_DOWN'; break;
+        case 'j': case 'J': case 'f': case 'F': case 'ArrowUp': if (!state.isPaused) actionType = 'ROTATE'; break; // 時計回り
+        case 'd': case 'D': case 'k': case 'K': case 'z': case 'Z': if (!state.isPaused) actionType = 'ROTATE_COUNTER_CLOCKWISE'; break; // 反時計回り
+        case ' ': if (!state.isPaused) actionType = 'HARD_DROP'; break;
+        case 'm': case 'M': case 'c': case 'C': if (!state.isPaused) actionType = 'HOLD'; break;
+        case 'p': case 'P': actionType = state.isPaused ? 'RESUME' : 'PAUSE'; break;
+        case 'r': case 'R': actionType = 'RESTART'; break;
+        default: actionDispatched = false; break;
       }
 
-      // ゲーム操作に関連するキーが押された場合、デフォルトのブラウザ動作（スクロールなど）を抑制
-      if (actionDispatched && ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' '].includes(event.key)) {
-        event.preventDefault();
+      // ... (アクション発行前のガード節) ...
+      if (state.isGameOver && actionType !== 'RESTART') { actionDispatched = false; }
+      if (actionType === 'PAUSE' && state.isPaused) actionDispatched = false;
+      if (actionType === 'RESUME' && (!state.isPaused || state.isGameOver)) actionDispatched = false;
+
+
+      if (actionDispatched && actionType) {
+        dispatch({ type: actionType } as GameAction);
+        // Zキーもデフォルト動作を抑制するキーリストに追加
+        if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' ', 'z', 'Z'].includes(event.key)) {
+          event.preventDefault();
+        }
       }
     },
-    [state.isPaused, state.isGameOver, dispatch] // keyStateを依存配列から削除
+    [state.isPaused, state.isGameOver, dispatch]
   );
 
   // キーが離された時の処理 (キーリピート制御が不要になったため、handleKeyUp自体不要になる場合がある)

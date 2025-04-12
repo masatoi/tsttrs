@@ -8,6 +8,8 @@
   --text-color: #fff;
   --ghost-color: rgba(255, 255, 255, 0.2);
   --ghost-border-color: rgba(255, 255, 255, 0.4);
+  --info-panel-width: 220px;
+  /* 情報パネルエリアの幅を変数化 (例) */
 }
 
 body {
@@ -38,15 +40,13 @@ h1 {
 /* --- 新しいゲームレイアウト (Grid) --- */
 .game-layout {
   display: grid;
-  /* カラム: Hold | GameBoard | RightPanel */
-  /* 幅はコンテンツに合わせる + GameBoard は成り行き */
-  grid-template-columns: auto min-content auto;
-  gap: 25px;
+  /* カラム: Hold | GameBoard | Next | Info+Controls */
+  grid-template-columns: auto min-content auto var(--info-panel-width);
+  /* ★ 4カラム定義 */
+  gap: 20px;
   /* パネル間のスペース */
   justify-content: center;
-  /* 全体を中央揃え */
   align-items: flex-start;
-  /* 各パネルを上揃え */
   margin-top: 15px;
 }
 
@@ -61,14 +61,22 @@ h1 {
   /* 特に指定不要 GameBoard 自体のスタイルが適用される */
 }
 
-/* 右パネル (Next, Info, Controls) */
-.right-panel {
+/* Nextキューパネル */
+.next-queue-panel {
+  width: 100px;
+  /* Nextキュー表示に必要な幅 (固定) */
+  /* Nextキューパネル自体のスタイルは下で定義 */
+}
+
+/* 情報 & コントロールエリア */
+.info-controls-area {
   display: flex;
+  /* 中の要素 (InfoPanel, Controls) を縦に並べる */
   flex-direction: column;
   gap: 15px;
-  /* 右パネル内の要素の間隔 */
-  width: 180px;
-  /* 右パネル全体の幅 (要調整) */
+  /* InfoPanelとControlsの間隔 */
+  width: 100%;
+  /* grid-template-columns で指定された幅を使う */
 }
 
 /* ゲームボード */
@@ -159,9 +167,6 @@ h1 {
   background-color: transparent !important;
   /* ラッパーの背景を見せるため透明に */
   border: none !important;
-  /* ラッパーの枠線を使うため削除 */
-  padding: 0 !important;
-  /* ラッパーの padding を使うため削除 */
   /* サイズに関するスタイルは BlockDisplay 側に任せる */
   vertical-align: top;
   /* 念のため */
@@ -365,30 +370,49 @@ h1 {
 }
 
 /* レスポンシブデザイン */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+
+  /* タブレット/スマホ向け */
   .game-layout {
     grid-template-columns: 1fr;
-    /* スマホでは1列表示 */
+    /* 1列表示に変更 */
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    justify-items: center;
+    /* 各アイテムを中央揃え */
     gap: 15px;
   }
 
-  .left-panel {
-    order: 2;
-    width: auto;
-    text-align: center;
-  }
-
-  /* Hold を下にする例 */
-  .right-panel {
-    order: 3;
+  .left-panel,
+  /* Hold */
+  .next-queue-panel,
+  /* Next */
+  .info-controls-area {
+    /* Info + Controls */
     width: 90%;
-    margin: 0 auto;
+    /* 幅を画面に合わせる */
+    max-width: 350px;
   }
 
-  /* Next/Info/Controls をまとめる */
+  /* 表示順序の例 (お好みで変更可) */
   .game-board-area {
     order: 1;
   }
 
-  /* ゲームボードを一番上に */
+  .left-panel {
+    order: 2;
+  }
+
+  /* Hold */
+  .next-queue-panel {
+    order: 3;
+  }
+
+  /* Next */
+  .info-controls-area {
+    order: 4;
+  }
+
+  /* Info+Controls */
 }

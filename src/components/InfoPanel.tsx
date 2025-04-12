@@ -30,29 +30,22 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ gameState }) => {
 
       {/* Stats */}
       <div className="stats">
-        <div className="stat-item">
-          <h3>スコア</h3>
-          <p>{score}</p>
-        </div>
-        <div className="stat-item">
-          <h3>レベル</h3>
-          <p>{level}</p>
-        </div>
-        <div className="stat-item">
-          <h3>ライン</h3>
-          <p>{lines}</p>
-        </div>
+        <div className="stat-item"><h3>スコア</h3><p>{score}</p></div>
+        <div className="stat-item"><h3>レベル</h3><p>{level}</p></div>
+        <div className="stat-item"><h3>ライン</h3><p>{lines}</p></div>
       </div>
 
-      {/* Controls Info */}
+      {/* Controls Info (修正箇所) */}
       <div className="controls-info">
         <h3>操作方法</h3>
         <ul>
-          <li>← → : 移動</li>
-          <li>↑ : 回転</li>
-          <li>↓ : ソフトドロップ</li>
+          <li>← / H / S : 移動 (左)</li>
+          <li>→ / L / G : 移動 (右)</li>
+          <li>↑ / F / J : 回転 (時計回り)</li>
+          <li>Z / K / D : 回転 (反時計回り)</li>
+          <li>↓ / N / V : ソフトドロップ</li>
           <li>スペース : ハードドロップ</li>
-          <li>Shift / C : ホールド</li>
+          <li>C / M : ホールド</li>
           <li>P : 一時停止/再開</li>
           <li>R : リスタート</li>
         </ul>

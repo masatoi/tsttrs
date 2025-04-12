@@ -203,23 +203,39 @@ export const isValidPosition = (
   return true;
 };
 
-// ブロックを回転させる関数
-export const rotateBlock = (block: Block): Block => {
-  // O型は回転しない
-  if (block.type === 4) return block;
+// --- ブロック回転関数 ---
+/**
+ * ブロックを指定された方向に90度回転させます。
+ * O型ブロックは回転しません。
+ * @param block 回転させるブロックオブジェクト
+ * @param direction 回転方向 (1: 時計回り, -1: 反時計回り)
+ * @returns 回転後の新しいブロックオブジェクト
+ */
+export const rotateBlock = (block: Block, direction: 1 | -1): Block => {
+  // O型(タイプ4)は回転しない
+  if (block.type === 4) {
+    return block;
+  }
 
-  // 行列を転置して行を反転することで90度回転
   const shape = block.shape;
+  // 形状データが正方形であることを前提とする (テトリスでは通常そう)
+  // もし長方形があり得るなら、より複雑な処理が必要
   const N = shape.length;
   const newShape = Array.from({ length: N }, () => Array(N).fill(0));
 
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
-      // 90度時計回り回転
-      newShape[x][N - 1 - y] = shape[y][x];
+      if (direction === 1) { // 時計回り (Clockwise)
+        // (y, x) -> (x, N - 1 - y)
+        newShape[x][N - 1 - y] = shape[y][x];
+      } else { // 反時計回り (Counter-Clockwise, direction === -1)
+        // (y, x) -> (N - 1 - x, y)
+        newShape[N - 1 - x][y] = shape[y][x];
+      }
     }
   }
 
+  // 新しい形状でブロックオブジェクトを返す (位置は変更しない)
   return {
     ...block,
     shape: newShape,

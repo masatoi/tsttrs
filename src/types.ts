@@ -35,9 +35,10 @@ export type GameAction =
   | { type: 'MOVE_LEFT' }
   | { type: 'MOVE_RIGHT' }
   | { type: 'MOVE_DOWN' }
-  | { type: 'ROTATE' }
+  | { type: 'ROTATE' } // 時計回り (Clockwise)
+  | { type: 'ROTATE_COUNTER_CLOCKWISE' } // ★ 反時計回り (Counter-Clockwise)
   | { type: 'HARD_DROP' }
-  | { type: 'HOLD' } // ホールドアクションを追加
+  | { type: 'HOLD' } // ホールドアクション
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'RESTART' }

@@ -3,8 +3,8 @@ import './App.css';
 import GameBoard from './components/GameBoard';
 import InfoPanel from './components/InfoPanel';
 import Controls from './components/Controls';
-import HoldDisplay from './components/HoldDisplay'; // インポート
-import NextQueueDisplay from './components/NextQueueDisplay'; // インポート
+import HoldDisplay from './components/HoldDisplay';
+import NextQueueDisplay from './components/NextQueueDisplay';
 import { useGameLogic } from './hooks/useGameLogic';
 
 function App() {
@@ -12,24 +12,27 @@ function App() {
 
   return (
     <div className="app">
-      
-      {/* 新しいレイアウト構造 */}
+      {/* 4カラムレイアウト */}
       <div className="game-layout">
 
-        {/* 左パネル: ホールド */}
+        {/* Column 1: ホールド */}
         <div className="left-panel">
           <HoldDisplay gameState={state} />
         </div>
 
-        {/* 中央: ゲームボード */}
+        {/* Column 2: ゲームボード */}
         <div className="game-board-area">
           <GameBoard gameState={state} />
         </div>
 
-        {/* 右パネル: Nextキュー、情報、コントロール */}
-        <div className="right-panel">
+        {/* Column 3: Nextキュー */}
+        <div>
           <NextQueueDisplay gameState={state} />
-          <InfoPanel gameState={state} /> {/* Stats, Messages, Controls Info */}
+        </div>
+
+        {/* Column 4: 情報 & コントロール */}
+        <div className="info-controls-area"> {/* ★ 新しいラッパーDiv */}
+          <InfoPanel gameState={state} />
           <Controls
             isPaused={state.isPaused}
             isGameOver={state.isGameOver}
