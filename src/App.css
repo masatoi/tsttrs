@@ -1,12 +1,13 @@
 /* src/App.css */
 :root {
   --cell-size: 25px;
-  --small-cell-size: 15px; /* Next/Hold 用のセルサイズ */
+  --small-cell-size: 15px;
+  /* Next/Hold 用のセルサイズ */
   --border-color: #333;
   --bg-color: #111;
   --text-color: #fff;
-  --ghost-color: rgba(255, 255, 255, 0.2); /* ゴーストの色 */
-  --ghost-border-color: rgba(255, 255, 255, 0.4); /* ゴーストの境界線色 */
+  --ghost-color: rgba(255, 255, 255, 0.2);
+  --ghost-border-color: rgba(255, 255, 255, 0.4);
 }
 
 body {
@@ -14,96 +15,183 @@ body {
   font-family: 'Arial', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
-  overflow-y: scroll; /* 縦スクロールを常に表示 */
+  overflow-y: scroll;
 }
 
 .app {
-  max-width: 1000px;
-  margin: 20px auto; /* 上下のマージン追加 */
-  padding: 20px;
+  /* max-width: 1000px; */
+  /* レイアウトに合わせて調整 */
+  width: fit-content;
+  /* 内容に合わせて幅を調整 */
+  margin: 20px auto;
+  padding: 10px;
+  /* 少し狭く */
   text-align: center;
 }
 
 h1 {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  /* 少し狭く */
   color: #61dafb;
 }
 
-.game-container {
-  display: flex;
+/* --- 新しいゲームレイアウト (Grid) --- */
+.game-layout {
+  display: grid;
+  /* カラム: Hold | GameBoard | RightPanel */
+  /* 幅はコンテンツに合わせる + GameBoard は成り行き */
+  grid-template-columns: auto min-content auto;
+  gap: 25px;
+  /* パネル間のスペース */
   justify-content: center;
-  align-items: flex-start; /* 上揃え */
-  gap: 30px; /* 少し間隔を広げる */
-  margin-top: 20px;
+  /* 全体を中央揃え */
+  align-items: flex-start;
+  /* 各パネルを上揃え */
+  margin-top: 15px;
+}
+
+/* 左パネル (Hold) */
+.left-panel {
+  width: 100px;
+  /* ホールド表示に必要な幅 (要調整) */
+}
+
+/* ゲームボードエリア */
+.game-board-area {
+  /* 特に指定不要 GameBoard 自体のスタイルが適用される */
+}
+
+/* 右パネル (Next, Info, Controls) */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  /* 右パネル内の要素の間隔 */
+  width: 180px;
+  /* 右パネル全体の幅 (要調整) */
 }
 
 /* ゲームボード */
 .game-board {
   display: inline-block;
+  /* Gridアイテムとして配置 */
   background-color: rgba(0, 0, 0, 0.8);
   border: 2px solid var(--border-color);
   padding: 2px;
-  /* 高さは自動計算されるように変更 */
-  /* height: calc(var(--cell-size) * 20 + 4px); */ /* BOARD_HEIGHT = 20 */
-  overflow: hidden;
-  position: relative; /* メッセージ表示などの基準点に */
+  line-height: 0;
+  /* セル間の隙間をなくす */
 }
 
 .row {
   display: flex;
-  height: var(--cell-size); /* 行の高さを指定 */
+  height: var(--cell-size);
 }
 
 .cell {
   width: var(--cell-size);
   height: var(--cell-size);
-  border: 1px solid rgba(50, 50, 50, 0.5); /* グリッド線を見やすく */
+  border: 1px solid rgba(50, 50, 50, 0.5);
   box-sizing: border-box;
-  background-color: transparent; /* デフォルトは透明 */
+  background-color: transparent;
 }
 
 .cell.filled {
-  /* 通常ブロックのスタイル */
-   border: 1px solid rgba(255, 255, 255, 0.3);
-   box-shadow: inset 0 0 3px rgba(255, 255, 255, 0.2); /* 立体感を出す */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 3px rgba(255, 255, 255, 0.2);
 }
 
 .cell.ghost {
-  /* ゴーストブロックのスタイル */
-  background-color: var(--ghost-color);
-  border: 1px dashed var(--ghost-border-color); /* 破線に変更 */
-  box-shadow: none; /* ゴーストには影なし */
+  background-color: var(--ghost-color) !important;
+  border: 1px dashed var(--ghost-border-color) !important;
+  box-shadow: none !important;
 }
 
+/* ホールドパネル */
+.hold-panel {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
 
-/* サイドパネル */
-.side-panel {
+.hold-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #61dafb;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Nextキューパネル */
+.next-queue-panel {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.next-queue-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #61dafb;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.next-blocks-queue {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 200px; /* 少し幅を調整 */
-  text-align: left; /* パネル内は左揃え */
+  /* 縦に並べる */
+  align-items: center;
+  /* 中央揃え */
+  gap: 5px;
 }
 
-/* 情報パネル */
+/* BlockDisplay (汎用ブロック表示) */
+.block-display {
+  display: inline-block;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  line-height: 0;
+  vertical-align: top;
+}
+
+.block-display.empty {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.block-display .row {
+  display: flex;
+}
+
+/* BlockDisplay 内の row は display:flex を明示 */
+.block-display .cell {
+  display: inline-block;
+  vertical-align: top;
+}
+
+/* BlockDisplay 内の cell */
+
+/* 情報パネル (Stats, Messages, Controls Info 用) */
 .info-panel {
   background-color: rgba(0, 0, 0, 0.6);
   border: 2px solid var(--border-color);
   padding: 15px;
   border-radius: 5px;
-  width: 100%;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* 要素間のスペース */
+  gap: 15px;
 }
 
 .info-panel h3 {
-    margin: 0 0 8px 0;
-    font-size: 14px;
-    color: #61dafb;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 5px;
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #61dafb;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
 }
 
 .game-over-message,
@@ -114,11 +202,11 @@ h1 {
   border: 1px solid #ff6b6b;
   text-align: center;
 }
-.paused-message {
-    background-color: rgba(0, 100, 180, 0.7);
-    border-color: #61dafb;
-}
 
+.paused-message {
+  background-color: rgba(0, 100, 180, 0.7);
+  border-color: #61dafb;
+}
 
 .game-over-message h2,
 .paused-message h2 {
@@ -126,18 +214,17 @@ h1 {
   margin: 0 0 5px 0;
   font-size: 1.1em;
 }
+
 .game-over-message p,
 .paused-message p {
-    margin: 0;
-    font-size: 0.9em;
+  margin: 0;
+  font-size: 0.9em;
 }
 
-
 .stats {
-  display: grid; /* Gridレイアウトに変更 */
-  grid-template-columns: repeat(3, 1fr); /* 3列均等割り */
-  gap: 10px; /* 列間のスペース */
-  margin-bottom: 0; /* 下マージン削除 */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 
 .stat-item {
@@ -149,85 +236,21 @@ h1 {
 
 .stat-item h3 {
   margin: 0;
-  font-size: 12px; /* 少し小さく */
-  color: #aaa; /* 少し薄く */
-  border-bottom: none; /* 線削除 */
+  font-size: 12px;
+  color: #aaa;
+  border-bottom: none;
   padding-bottom: 0;
-  text-transform: uppercase; /* 大文字に */
-  letter-spacing: 0.5px; /* 字間 */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .stat-item p {
   margin: 3px 0 0 0;
-  font-size: 16px; /* 少し小さく */
+  font-size: 16px;
   font-weight: bold;
   color: var(--text-color);
 }
 
-/* ホールドとNextの共通スタイル */
-.hold-block, .next-blocks {
-    background-color: rgba(0, 0, 0, 0.3);
-    padding: 10px;
-    border-radius: 3px;
-}
-
-.hold-block h3 {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.hold-block h3 span { /* (使用済) のスタイル */
-    font-size: 0.8em;
-    color: #ffcc00;
-}
-
-
-/* ブロック表示エリア (Hold/Next共通) */
-.block-display {
-    display: inline-block;
-    background-color: rgba(0, 0, 0, 0.5);
-    padding: 5px;
-    border: 1px solid var(--border-color);
-    line-height: 0; /* セル間の隙間をなくす */
-    min-height: calc(var(--small-cell-size) * 4 + 12px); /* 4x4表示エリアの高さ確保 */
-    min-width: calc(var(--small-cell-size) * 4 + 12px); /* 4x4表示エリアの幅確保 */
-    vertical-align: top; /* 縦揃え */
-}
-
-.block-display.empty {
-    background-color: rgba(0, 0, 0, 0.2); /* 空の時の背景 */
-}
-
-
-.block-display .row {
-    height: var(--small-cell-size); /* 小さいセルの高さ */
-}
-
-.block-display .cell {
-    width: var(--small-cell-size); /* 小さいセルの幅 */
-    height: var(--small-cell-size);
-    border: 1px solid rgba(50, 50, 50, 0.5); /* グリッド線 */
-    display: inline-block; /* inline-blockに変更 */
-    vertical-align: top; /* 上揃え */
-}
-
-.block-display .cell.filled {
-     border: 1px solid rgba(255, 255, 255, 0.3); /* 通常の塗りつぶしセル */
-}
-
-/* Nextキューのレイアウト */
-.next-blocks-queue {
-    display: flex;
-    flex-direction: column; /* 縦に並べる */
-    gap: 5px; /* Next間のスペース */
-    align-items: center; /* 中央揃え */
-}
-
-.next-block-display {
-    /* 個々のNextブロック表示スタイル (block-display共通スタイルを使用) */
-}
-
-/* 操作方法 */
 .controls-info {
   background-color: rgba(0, 0, 0, 0.3);
   padding: 10px;
@@ -236,31 +259,29 @@ h1 {
 
 .controls-info ul {
   margin: 0;
-  padding-left: 20px;
-  font-size: 12px;
-  list-style: none; /* list style削除 */
   padding: 0;
+  list-style: none;
+  font-size: 12px;
 }
 
 .controls-info li {
   margin-bottom: 5px;
-  padding-left: 15px; /* アイコンスペース */
+  padding-left: 15px;
   position: relative;
 }
-.controls-info li::before { /* 簡単なアイコン表示 */
-    content: '>';
-    position: absolute;
-    left: 0;
-    color: #61dafb;
-}
 
+.controls-info li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: #61dafb;
+}
 
 /* コントロールボタン */
 .controls {
   display: flex;
   gap: 10px;
   justify-content: center;
-  margin-top: 10px; /* 上にマージン追加 */
 }
 
 .control-button {
@@ -272,62 +293,51 @@ h1 {
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.1s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .control-button:hover {
   background-color: #4fa8d1;
 }
+
 .control-button:active {
-    transform: translateY(1px); /* クリック感を出す */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .control-button:disabled {
   background-color: #555;
   color: #999;
   cursor: not-allowed;
-   box-shadow: none;
-   transform: none;
+  box-shadow: none;
+  transform: none;
 }
 
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
-  .app {
-      padding: 10px;
-  }
-  .game-container {
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
+  .game-layout {
+    grid-template-columns: 1fr;
+    /* スマホでは1列表示 */
+    gap: 15px;
   }
 
-  .side-panel {
-    width: 90%; /* 幅を調整 */
-    max-width: 350px; /* 最大幅設定 */
-    order: 1; /* ゲームボードより上に表示 */
-    text-align: center; /* 中央揃え */
+  .left-panel {
+    order: 2;
+    width: auto;
+    text-align: center;
   }
-   .game-board {
-       order: 2; /* サイドパネルの下に */
-       /* スマホ用にセルのサイズを小さくする */
-       /* --cell-size: 20px; */
-   }
 
-   /* スマホ表示用にNextキューを横並びにするなど調整可能 */
-   .next-blocks-queue {
-       /* flex-direction: row; */
-       /* justify-content: center; */
-   }
+  /* Hold を下にする例 */
+  .right-panel {
+    order: 3;
+    width: 90%;
+    margin: 0 auto;
+  }
 
-   .stats {
-       grid-template-columns: repeat(3, 1fr); /* 3列維持 */
-   }
+  /* Next/Info/Controls をまとめる */
+  .game-board-area {
+    order: 1;
+  }
 
-   .info-panel h3 {
-       text-align: center;
-   }
-   .controls-info ul {
-       padding-left: 10px;
-   }
+  /* ゲームボードを一番上に */
 }

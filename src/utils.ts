@@ -79,7 +79,6 @@ export const TETROMINOS: {
   8: { shape: [[0]], color: 'rgba(255, 255, 255, 0.2)' } // ゴーストブロック用 (色はCSSで指定するが念のため)
 };
 
-
 // ブロックの初期位置を計算する関数
 // ↓↓↓ ここに export を追加 ↓↓↓
 export const getInitialPosition = (type: number): Position => {
