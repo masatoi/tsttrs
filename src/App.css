@@ -56,11 +56,6 @@ h1 {
   /* ホールド表示に必要な幅 (要調整) */
 }
 
-/* ゲームボードエリア */
-.game-board-area {
-  /* 特に指定不要 GameBoard 自体のスタイルが適用される */
-}
-
 /* Nextキューパネル */
 .next-queue-panel {
   width: 100px;
@@ -108,10 +103,16 @@ h1 {
   box-shadow: inset 0 0 3px rgba(255, 255, 255, 0.2);
 }
 
+/* ★ ゴーストピース用のスタイル ★ */
 .cell.ghost {
-  background-color: var(--ghost-color) !important;
-  border: 1px dashed var(--ghost-border-color) !important;
+  background-color: transparent !important; /* 背景は透明に */
+  border-color: var(--ghost-border-color) !important; /* 枠線の色を定義済みの変数で */
+  border-style: dashed !important; /* 枠線を点線に */
+  /* 必要であれば影などを調整 */
   box-shadow: none !important;
+  /* 必要に応じて、現在操作中のブロックの色を薄く表示する場合 */
+  /* 例: background-color: rgba(var(--current-block-rgb), 0.1); */
+  /* この場合、GameBoard.tsxでゴーストセルのbackgroundColorを設定する必要あり */
 }
 
 /* ホールドパネル */

@@ -171,7 +171,6 @@ export const createEmptyBoard = (): number[][] => {
 export const isValidPosition = (
   block: Block,
   board: number[][],
-  checkGhost: boolean = false // ゴーストセルの衝突を無視するかどうか
 ): boolean => {
   for (let y = 0; y < block.shape.length; y++) {
     for (let x = 0; x < block.shape[y].length; x++) {
@@ -180,22 +179,19 @@ export const isValidPosition = (
         const boardX = block.position.x + x;
         const boardY = block.position.y + y;
 
-        // ボード外にはみ出していないか
+        // 1. ボード外にはみ出していないか
         if (
           boardX < 0 ||
           boardX >= BOARD_WIDTH ||
-          // boardY < 0 || // 上へのはみ出しチェックは状況による (ここでは判定から外す)
-          boardY >= BOARD_HEIGHT
+          boardY >= BOARD_HEIGHT // Y座標は >= BOARD_HEIGHT で判定 (0未満は許容するケースがあるため)
         ) {
           return false;
         }
 
-        // 他のブロックと重なっていないか (ゴーストセルは無視するオプション)
-        // boardY < 0 のチェックを追加して配列外アクセスを防ぐ
-        if (boardY >= 0 && board[boardY] && board[boardY][boardX] !== 0) {
-          if (!checkGhost || board[boardY][boardX] !== 8) { // 8はゴースト用の仮の値
-            return false;
-          }
+        // 2. 他の固定ブロックと重なっていないか (ボード内かつY>=0 の場合のみチェック)
+        //    ※ ゴースト自身を描画する際に他のゴーストセル(8)との衝突は考慮しない
+        if (boardY >= 0 && board[boardY]?.[boardX] !== 0 && board[boardY]?.[boardX] !== 8) {
+          return false;
         }
       }
     }
@@ -316,3 +312,27 @@ export const calculateDropTime = (level: number): number => {
   let dropTime = baseSpeed * Math.pow(speedMultiplier, level - 1);
   return Math.max(dropTime, minSpeed);
 };
+
+// ゲームボードのサイズ定数が必要な場合 (utils.ts からインポートするか、ここで定義)
+// 例: import { BOARD_WIDTH, BOARD_HEIGHT } from './utils';
+
+/**
+ * ブロックのゴースト（落下予測地点）の位置を計算する関数
+ * @param block 現在のブロック
+ * @param grid 現在のゲーム盤面 (固定されたブロックのみ含む)
+ * @returns ゴーストブロックの座標 (Position)
+ */
+export const calculateGhostPosition = (block: Block, grid: number[][]): Position => {
+  let ghostY = block.position.y;
+  let testBlock = { ...block };
+
+  // 1マスずつ下に移動して、有効な最後の Y 座標を探す
+  while (isValidPosition({ ...testBlock, position: { ...testBlock.position, y: ghostY + 1 } }, grid)) {
+    ghostY++;
+  }
+
+  return { x: block.position.x, y: ghostY };
+};
+
+// ゴーストブロック用のセルタイプを定義 (utils.ts に移動しても良い)
+export const GHOST_CELL_TYPE = 8;

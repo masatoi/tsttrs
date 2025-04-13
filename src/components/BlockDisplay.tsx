@@ -22,7 +22,7 @@ const BlockDisplay: React.FC<BlockDisplayProps> = ({
     const displaySize = 4; // 4x4 の表示エリア
     const displayGrid = Array.from({ length: displaySize }, () => Array(displaySize).fill(0));
 
-    const shapeHeight = block.shape.reduce((h, row) => row.some(c => c !== 0) ? h + 1 : h, 0) || 1; // ブロックの実質的な高さ
+    // const shapeHeight = block.shape.reduce((h, row) => row.some(c => c !== 0) ? h + 1 : h, 0) || 1; // ブロックの実質的な高さ
     const shapeWidth = block.shape[0]?.length || 1; // 最初の行の幅を基準とする
 
     // ブロック形状の中心を描画エリアの中心に合わせるためのオフセット
