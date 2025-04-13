@@ -41,7 +41,7 @@ TypeScriptとReactを使用して構築されたテトリスライクなブロ�
 
 ```bash
 # リポジトリをクローン (URLを実際の場所に変更してください)
-# git clone [https://github.com/yourusername/tsttrs.git](https://github.com/yourusername/tsttrs.git)
+# git clone https://github.com/masatoi/tsttrs.git
 # cd tsttrs
 
 # 依存関係をインストール
