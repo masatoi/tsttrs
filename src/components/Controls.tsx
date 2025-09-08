@@ -40,4 +40,4 @@ const Controls: React.FC<ControlsProps> = ({ isPaused, isGameOver, dispatch }) =
   );
 };
 
-export default Controls;
+export default React.memo(Controls);

@@ -85,7 +85,7 @@ const processBlockLocking = (
   hardDropDistance: number = 0 // ハードドロップで落下した距離 (0なら通常落下/ソフトドロップ)
 ): GameState => {
   // 1. グリッドにブロックをマージ
-  let fixedGrid = mergeBlockToBoard(lockedBlock, state.grid);
+  const fixedGrid = mergeBlockToBoard(lockedBlock, state.grid);
   // 2. ライン消去処理
   const { newBoard, linesCleared } = clearLines(fixedGrid);
 
@@ -256,7 +256,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case 'HARD_DROP': {
       // 着地位置を計算
       let newY = state.currentBlock.position.y;
-      let testBlock = { ...state.currentBlock };
+      const testBlock = { ...state.currentBlock };
       while (isValidPosition({ ...testBlock, position: { ...testBlock.position, y: newY + 1 } }, state.grid)) {
         newY++;
       }
