@@ -309,7 +309,7 @@ export const calculateDropTime = (level: number): number => {
   const speedMultiplier = 0.85; // レベルごとの速度係数
   const minSpeed = 100; // 最速値
 
-  let dropTime = baseSpeed * Math.pow(speedMultiplier, level - 1);
+  const dropTime = baseSpeed * Math.pow(speedMultiplier, level - 1);
   return Math.max(dropTime, minSpeed);
 };
 
@@ -324,7 +324,7 @@ export const calculateDropTime = (level: number): number => {
  */
 export const calculateGhostPosition = (block: Block, grid: number[][]): Position => {
   let ghostY = block.position.y;
-  let testBlock = { ...block };
+  const testBlock = { ...block };
 
   // 1マスずつ下に移動して、有効な最後の Y 座標を探す
   while (isValidPosition({ ...testBlock, position: { ...testBlock.position, y: ghostY + 1 } }, grid)) {

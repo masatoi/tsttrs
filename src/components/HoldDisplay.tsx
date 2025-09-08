@@ -29,4 +29,4 @@ const HoldDisplay: React.FC<HoldDisplayProps> = ({ gameState }) => {
     );
 };
 
-export default HoldDisplay;
+export default React.memo(HoldDisplay);

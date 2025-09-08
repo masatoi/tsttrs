@@ -54,4 +54,4 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ gameState }) => {
   );
 };
 
-export default InfoPanel;
+export default React.memo(InfoPanel);

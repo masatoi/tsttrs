@@ -22,4 +22,4 @@ const NextQueueDisplay: React.FC<NextQueueDisplayProps> = ({ gameState }) => {
     );
 };
 
-export default NextQueueDisplay;
+export default React.memo(NextQueueDisplay);
